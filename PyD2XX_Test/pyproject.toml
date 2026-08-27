@@ -1,0 +1,28 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.build]
+includes = ["src/PyD2XX/"]
+
+[project]
+name = "PyD2XX"
+version = "0.0.1"
+authors = [
+  { name="Hector Soto", email="hector.soto@ftdichip.com" },
+]
+description = "A Python wrapper for the FTDI D2XX library."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = ["FTDI", "ftdichip", "PyD2XX", "D2XX", "FTD2XX"]
+
+[project.urls]
+GitHub_Repo = "https://github.com/S-Hector/PyD3XX"
+FTDI_Homepage = "https://ftdichip.com/"
+FTDI_D3XX_Drivers = "https://ftdichip.com/drivers/d2xx-drivers/"
+D2XX_Programming_Guide = "https://ftdichip.com/wp-content/uploads/2025/06/D2XX_Programmers_Guide.pdf"
