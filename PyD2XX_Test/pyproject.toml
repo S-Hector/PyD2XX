@@ -7,7 +7,7 @@ includes = ["src/PyD2XX/"]
 
 [project]
 name = "PyD2XX"
-version = "0.0.1"
+version = "0.0.4"
 authors = [
   { name="Hector Soto", email="hector.soto@ftdichip.com" },
 ]
@@ -22,7 +22,7 @@ classifiers = [
 keywords = ["FTDI", "ftdichip", "PyD2XX", "D2XX", "FTD2XX"]
 
 [project.urls]
-GitHub_Repo = "https://github.com/S-Hector/PyD3XX"
+GitHub_Repo = "https://github.com/S-Hector/PyD2XX"
 FTDI_Homepage = "https://ftdichip.com/"
 FTDI_D3XX_Drivers = "https://ftdichip.com/drivers/d2xx-drivers/"
 D2XX_Programming_Guide = "https://ftdichip.com/wp-content/uploads/2025/06/D2XX_Programmers_Guide.pdf"

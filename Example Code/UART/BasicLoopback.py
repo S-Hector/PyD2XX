@@ -3,28 +3,6 @@ import time
 
 PyD2XX.SetPrintLevel(PyD2XX.PRINT_NONE)
 
-PRINT_STREAM = True # If true, HS_StreamOutput will print each byte written.
-
-def HS_StreamOutput(Device: PyD2XX.FT_Device, OutputStream: bytearray, StreamLength: int, IntervalMS: int):
-    Status = PyD2XX.FT_OTHER_ERROR
-    if((len(OutputStream) <  1) or (StreamLength < 1)):
-        return PyD2XX.FT_INVALID_PARAMETER
-    for i in range(StreamLength):
-        Buffer = PyD2XX.FT_Buffer.from_int(OutputStream[i])
-        Status, BytesWritten = PyD2XX.FT_Write(Device, Buffer, 1)
-        if(PRINT_STREAM):
-            print("Wrote(" + str(BytesWritten) + "): '" + hex(OutputStream[i]) + "'")
-        if(Status != PyD2XX.FT_OK):
-            return Status
-        if(BytesWritten != 1):
-            return PyD2XX.FT_IO_ERROR
-        time.sleep(IntervalMS / 1000.0)
-    return Status
-
-# ---| Main Code Starts Here |---
-OutputStream = bytearray.fromhex("90 80 F8 82 92 99 B0 A4 F9 C0 40 7F FF 7F") #Bytes are from left to right.
-StreamLength = len(OutputStream)
-
 if(PyD2XX.Platform == "linux"):
     Status = PyD2XX.unbind_ftdi_sio(VID = int("0403", 16))
     if(Status != PyD2XX.FT_OK):
@@ -38,9 +16,6 @@ if(Status != PyD2XX.FT_OK):
     exit()
 if(DeviceCount < 1):
     print("Aborting: No FTDI devices connected!")
-    exit()
-if(DeviceCount > 1):
-    print("Aborting: Too many FTDI devices connected!")
     exit()
 print("Detected " + str(DeviceCount) + " FTDI devices!")
 
@@ -66,17 +41,37 @@ if(Status != PyD2XX.FT_OK):
     exit()
 print("Opened device 0!")
 
-Status = PyD2XX.FT_SetBitMode(Device, int("0x00FF", 16), PyD2XX.FT_BITMODE_ASYNC_BITBANG)
+Status = PyD2XX.FT_SetBitMode(Device, int("0x0000", 16), PyD2XX.FT_BITMODE_RESET)
 if(Status != PyD2XX.FT_OK):
     print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO SET BIT MODE: ABORTING")
     exit()
-print("Entered Async Bit-Bang mode with all DATA pins as outputs.")
-print("Outputing data...")
-Status = HS_StreamOutput(Device, OutputStream, StreamLength, 1000)
+
+Status = PyD2XX.FT_Purge(Device, PyD2XX.FT_PURGE_RX | PyD2XX.FT_PURGE_TX)
 if(Status != PyD2XX.FT_OK):
-    print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO STREAM OUTPUT: ABORTING")
+    print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO PURGE DEVICE BUFFERS: ABORTING")
     exit()
-print("Finished outputing data.")
+
+LoopbackString = "Hello World"
+LS_Length = len(LoopbackString)
+Buffer = PyD2XX.FT_Buffer.from_str(LoopbackString)
+Status, BytesWritten = PyD2XX.FT_Write(Device, Buffer, LS_Length)
+if(Status != PyD2XX.FT_OK):
+    print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO WRITE STRING: ABORTING")
+    exit()
+if(BytesWritten != LS_Length):
+    print("Only " + str(BytesWritten) + " bytes were written when " + str(LS_Length) + " bytes were expected!")
+    exit()
+print("Wrote(" + str(BytesWritten) + "): \"" + LoopbackString +"\"")
+Status, Buffer, BytesRead = PyD2XX.FT_Read(Device, BytesWritten)
+if(BytesRead != BytesWritten):
+    print("Only " + str(BytesRead) + " bytes were read when " + str(BytesWritten) + " bytes were expected!")
+    exit()
+
+ReadString = Buffer.Value().decode("utf-8")
+print("Read(" + str(BytesRead) + "): \"" + ReadString +"\"")
+if(ReadString != LoopbackString):
+    print("ERROR: Received string does not match sent string!")
+
 Status = PyD2XX.FT_Close(Device)
 if(Status != PyD2XX.FT_OK):
     print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO CLOSE DEVICE 0: ABORTING")
