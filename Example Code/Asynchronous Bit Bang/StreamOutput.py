@@ -30,7 +30,7 @@ if(PyD2XX.Platform == "linux"):
     if(Status != PyD2XX.FT_OK):
         print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO UNBIND FTDI DEVICES FROM ftdi_sio: ABORTING")
         exit()
-    print("Unbinded all FTDI devices (PID == 0x0403) from ftdi_sio!")
+    print("Unbinded all FTDI devices (VID == 0x0403) from ftdi_sio!")
 
 Status, DeviceCount = PyD2XX.FT_CreateDeviceInfoList()
 if(Status != PyD2XX.FT_OK):
@@ -88,4 +88,4 @@ if(PyD2XX.Platform == "linux"):
     if(Status != PyD2XX.FT_OK):
         print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO UNBIND FTDI DEVICES FROM ftdi_sio: ABORTING")
         exit()
-    print("Rebinded all FTDI devices (PID == 0x0403) to ftdi_sio!")
+    print("Rebinded all FTDI devices (VID == 0x0403) to ftdi_sio!")
