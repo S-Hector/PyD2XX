@@ -1,6 +1,6 @@
 # PyD2XX
 A Python wrapper for the FTDI D2XX library.
-PyD2XX will eventually support Windows, Linux, and MacOS.  
+PyD2XX supports Windows, Linux, and MacOS.  
 Most D2XX dynamic library variants are included in this package, so you don't need to include them directly in your project!  
 \^You don't need and should not have any D2XX .dll, .dylib, or .so file in your script's directory.  
 This was designed so the user needs zero ctypes knowledge and not need to import anything besides PyD2XX to interact with D2XX devices. The user should never have to interact with a ctypes object or method.  
