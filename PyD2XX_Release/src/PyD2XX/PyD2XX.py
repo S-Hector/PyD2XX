@@ -20,8 +20,8 @@ from sys import platform as Platform
 
 # ---| Python Library Specific Definitions |---
 
-VERSION = "0.0.2"
-VERSION_TEST = "0.0.4_mâner nou"
+VERSION = "0.0.3"
+VERSION_TEST = "0.0.5_legătură_sufletească"
 
 PRINT_NONE =            int("00000", 2) # Print no messages.
 PRINT_ERROR_CRITICAL =  int("00001", 2) # Print critical error messages.
@@ -339,7 +339,6 @@ def FT_GetDeviceInfoList(DeviceCount: int) -> tuple[int, list[FT_Device]] | tupl
         _Print(FT_STATUS_STR[Status] + " | ERROR: DeviceCount IS LESS THAN 1.", PRINT_ERROR_MINOR, False)
         return Status, "FT_OTHER_ERROR"
     DeviceList = (_FT_DEVICE_LIST_INFO_NODE * DeviceCount.value)()
-    Handle = ctypes.c_void_p(0)
     Status = _DLL.FT_GetDeviceInfoList(ctypes.byref(DeviceList), ctypes.byref(DeviceCount))
     if(Status != FT_OK):
         _Print(FT_STATUS_STR[Status] + " | ERROR: FAILED TO GET DEVICE INFO LIST.", PRINT_ERROR_MAJOR, False)
@@ -354,7 +353,34 @@ def FT_GetDeviceInfoList(DeviceCount: int) -> tuple[int, list[FT_Device]] | tupl
         ReturnDeviceList[i].LocID = DeviceList[i].LocID
         ReturnDeviceList[i].SerialNumber = DeviceList[i].SerialNumber.decode("utf-8")
         ReturnDeviceList[i].Description = DeviceList[i].Description.decode("utf-8")
+        ReturnDeviceList[i].Handle = DeviceList[i].Handle.value if (DeviceList[i].Handle is not None) else 0
     return Status, ReturnDeviceList
+
+def FT_GetDeviceInfoDetail(Index: int) -> tuple[int, FT_Device] | tuple[int, str]:
+    Status = FT_OK
+    Index = ctypes.c_ulong(Index)
+    Device = _FT_DEVICE_LIST_INFO_NODE()
+    Status = _DLL.FT_GetDeviceInfoDetail(Index, 
+                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Flags.offset,
+                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Type.offset,
+                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.ID.offset,
+                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.LocID.offset,
+                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.SerialNumber.offset,
+                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Description.offset,
+                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Handle.offset)
+    if(Status != FT_OK):
+        _Print(FT_STATUS_STR[Status] + " | ERROR: FAILED TO GET DEVICE INFO DETAIL.", PRINT_ERROR_MAJOR, False)
+        return Status, "FT_OTHER_ERROR"
+    ReturnDevice = _CreateDevice()
+    ReturnDevice.Handle = "FT_OTHER_ERROR"
+    ReturnDevice.Flags = Device.Flags
+    ReturnDevice.Type = Device.Type
+    ReturnDevice.ID = Device.ID
+    ReturnDevice.LocID = Device.LocID
+    ReturnDevice.SerialNumber = Device.SerialNumber.decode("utf-8")
+    ReturnDevice.Description = Device.Description.decode("utf-8")
+    ReturnDevice.Handle = Device.Handle.value if (Device.Handle is not None) else 0
+    return Status, ReturnDevice
 
 def FT_Open(Index: int, Device: FT_Device) -> int:
     Status = FT_OTHER_ERROR
