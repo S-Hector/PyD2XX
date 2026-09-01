@@ -1,5 +1,4 @@
 import PyD2XX
-import time
 
 PyD2XX.SetPrintLevel(PyD2XX.PRINT_NONE)
 

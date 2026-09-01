@@ -1,5 +1,4 @@
 import PyD2XX
-import time
 
 PyD2XX.SetPrintLevel(PyD2XX.PRINT_NONE)
 
@@ -41,7 +40,7 @@ for i in range(DeviceCount):
     PID = Device.ID & int("0x0FFFF", 16);
     print("  ID = 0x" + format(Device.ID, "08X") + \
     " | VID:PID = " + format(VID, "x").zfill(4) + ":" + format(PID, "x").zfill(4))
-    print("  LocID = 0x" + format(Device.ID, "08X"))
+    print("  LocID = 0x" + format(Device.LocID, "08X"))
     print("  Serial Number = \"" + Device.SerialNumber + "\"")
     print("  Description = \"" + Device.Description + "\"")
     print("  Handle = ", end="")

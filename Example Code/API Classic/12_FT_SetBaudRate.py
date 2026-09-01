@@ -2,6 +2,8 @@ import PyD2XX
 
 PyD2XX.SetPrintLevel(PyD2XX.PRINT_NONE)
 
+BAUD_RATE = 9600
+
 # ---| Main Code Starts Here |---
 if(PyD2XX.Platform == "linux"):
     Status = PyD2XX.unbind_ftdi_sio(VID = int("0403", 16))
@@ -29,12 +31,17 @@ print("---| Device 0 (\"" +  Device.Description  + "\", \"" \
 if(Device.Flags & PyD2XX.FT_FLAGS_OPENED):
     print("  Device is in use by another process! Will not attempt to open!")
 else:
-    print("  Device is free! Will attempt to open!")
+    print("  Device is free! Will attempt to open and set baud rate!")
     Status = PyD2XX.FT_Open(0, Device)
     if(Status != PyD2XX.FT_OK):
         print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO OPEN DEVICE: ABORTING")
         exit()
     print("  Successfully opened!")
+    Status = PyD2XX.FT_SetBaudRate(Device, BAUD_RATE)
+    if(Status != PyD2XX.FT_OK):
+        print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO SET BAUD RATE: ABORTING")
+        exit()
+    print("  Successfully set baud rate to " + str(BAUD_RATE) + ".")
     Status = PyD2XX.FT_Close(Device)
     if(Status != PyD2XX.FT_OK):
         print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO CLOSE DEVICE: ABORTING")

@@ -32,18 +32,38 @@ for i in range(DeviceCount):
     if(Device.Flags & PyD2XX.FT_FLAGS_OPENED):
         print("  Device is in use by another process! Will not attempt to open!")
     else:
-        print("  Device is free! Will attempt to open!")
-        Status = PyD2XX.FT_Open(0, Device)
+        print("Device is free! Will attempt to open by serial number!")
+        Status = PyD2XX.FT_OpenEx(Device.SerialNumber, PyD2XX.FT_OPEN_BY_SERIAL_NUMBER, Device)
         if(Status != PyD2XX.FT_OK):
             print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO OPEN DEVICE: ABORTING")
             exit()
-        print("  Successfully opened!")
         print("  New Handle: 0x" + format(Device.Handle, "016X"))
         Status = PyD2XX.FT_Close(Device)
         if(Status != PyD2XX.FT_OK):
             print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO CLOSE DEVICE: ABORTING")
             exit()
-        print("  Successfully closed!")
+        print("  Successfully opened & closed! Will attempt to open by description!")
+        Status = PyD2XX.FT_OpenEx(Device.Description, PyD2XX.FT_OPEN_BY_DESCRIPTION, Device)
+        if(Status != PyD2XX.FT_OK):
+            print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO OPEN DEVICE: ABORTING")
+            exit()
+        print("  New Handle: 0x" + format(Device.Handle, "016X"))
+        Status = PyD2XX.FT_Close(Device)
+        if(Status != PyD2XX.FT_OK):
+            print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO CLOSE DEVICE: ABORTING")
+            exit()
+        print("  Successfully opened & closed! Will attempt to open by location!")
+        Status = PyD2XX.FT_OpenEx(Device.LocID, PyD2XX.FT_OPEN_BY_LOCATION, Device)
+        if(Status != PyD2XX.FT_OK):
+            print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO OPEN DEVICE: ABORTING")
+            exit()
+        print("  New Handle: 0x" + format(Device.Handle, "016X"))
+        Status = PyD2XX.FT_Close(Device)
+        if(Status != PyD2XX.FT_OK):
+            print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO CLOSE DEVICE: ABORTING")
+            exit()
+        print("  Successfully opened & closed!")
+        
 
 if(PyD2XX.Platform == "linux"):
     Status = PyD2XX.bind_ftdi_sio(VID = int("0403", 16))

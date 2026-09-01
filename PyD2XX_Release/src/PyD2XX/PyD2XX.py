@@ -20,8 +20,8 @@ from sys import platform as Platform
 
 # ---| Python Library Specific Definitions |---
 
-VERSION = "0.0.3"
-VERSION_TEST = "0.0.5_legătură_sufletească"
+VERSION = "0.0.4"
+VERSION_TEST = "0.0.7_adresă_nouă"
 
 PRINT_NONE =            int("00000", 2) # Print no messages.
 PRINT_ERROR_CRITICAL =  int("00001", 2) # Print critical error messages.
@@ -227,6 +227,13 @@ FT_FLAGS_HISPEED = 2
 FT_PURGE_RX	= 1
 FT_PURGE_TX = 2
 
+FT_LIST_NUMBER_ONLY = int("0x80000000", 16)
+FT_LIST_BY_INDEX = int("0x40000000", 16)
+FT_LIST_ALL = int("0x20000000", 16)
+FT_OPEN_BY_SERIAL_NUMBER = int("0x00000001", 16)
+FT_OPEN_BY_DESCRIPTION = int("0x00000002", 16)
+FT_OPEN_BY_LOCATION = int("0x00000004", 16)
+
 class FT_Buffer:
     def __init__(self, Size: int = None):
         if(isinstance(Size, int)):
@@ -274,10 +281,10 @@ class FT_Buffer:
 
 class _FT_DEVICE_LIST_INFO_NODE(ctypes.Structure):
     _fields_ = [
-        ("Flags", ctypes.c_int32), #ULONG for Windows is 4 bytes. Linux library follows same byte alignment against normal convention.
-        ("Type", ctypes.c_int32),
-        ("ID", ctypes.c_int32),
-        ("LocID", ctypes.c_int32),
+        ("Flags", ctypes.c_ulong), #ULONG for Windows is 4 bytes. Linux library follows same byte alignment against normal convention.
+        ("Type", ctypes.c_ulong),
+        ("ID", ctypes.c_ulong),
+        ("LocID", ctypes.wintypes.DWORD),
         ("SerialNumber", ctypes.c_char * 16),
         ("Description", ctypes.c_char * 64),
         ("Handle", ctypes.c_void_p)
@@ -361,18 +368,17 @@ def FT_GetDeviceInfoDetail(Index: int) -> tuple[int, FT_Device] | tuple[int, str
     Index = ctypes.c_ulong(Index)
     Device = _FT_DEVICE_LIST_INFO_NODE()
     Status = _DLL.FT_GetDeviceInfoDetail(Index, 
-                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Flags.offset,
-                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Type.offset,
-                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.ID.offset,
-                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.LocID.offset,
-                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.SerialNumber.offset,
-                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Description.offset,
-                                         ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Handle.offset)
+                                            ctypes.c_void_p(ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Flags.offset),
+                                            ctypes.c_void_p(ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Type.offset),
+                                            ctypes.c_void_p(ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.ID.offset),
+                                            ctypes.c_void_p(ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.LocID.offset),
+                                            ctypes.c_void_p(ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.SerialNumber.offset),
+                                            ctypes.c_void_p(ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Description.offset),
+                                            ctypes.c_void_p(ctypes.addressof(Device) + _FT_DEVICE_LIST_INFO_NODE.Handle.offset))
     if(Status != FT_OK):
         _Print(FT_STATUS_STR[Status] + " | ERROR: FAILED TO GET DEVICE INFO DETAIL.", PRINT_ERROR_MAJOR, False)
         return Status, "FT_OTHER_ERROR"
     ReturnDevice = _CreateDevice()
-    ReturnDevice.Handle = "FT_OTHER_ERROR"
     ReturnDevice.Flags = Device.Flags
     ReturnDevice.Type = Device.Type
     ReturnDevice.ID = Device.ID
@@ -381,6 +387,45 @@ def FT_GetDeviceInfoDetail(Index: int) -> tuple[int, FT_Device] | tuple[int, str
     ReturnDevice.Description = Device.Description.decode("utf-8")
     ReturnDevice.Handle = Device.Handle.value if (Device.Handle is not None) else 0
     return Status, ReturnDevice
+
+def FT_ListDevices(IndexCount: int, Flags: int) -> tuple[int, int] | tuple[int, str] | tuple[int, list[str]]:
+    Status = FT_OTHER_ERROR
+    ReturnValue = FT_OTHER_ERROR
+    if(Flags & FT_LIST_NUMBER_ONLY):
+        ReturnValue = ctypes.wintypes.DWORD(0)
+        Status = _DLL.FT_ListDevices(ctypes.byref(ReturnValue), NULL, Flags)
+        if(Status == FT_OK):
+            ReturnValue = ReturnValue.value
+        else:
+            ReturnValue = 0
+            _Print(FT_STATUS_STR[Status] + " | FT_ListDevices(), ERROR: FAILED TO LIST DEVICE COUNT.", PRINT_ERROR_MAJOR, False)
+    elif(Flags & FT_LIST_BY_INDEX):
+        Buffer = ctypes.c_buffer(SIZE_CHAR * 64)
+        DeviceIndex = ctypes.wintypes.DWORD(IndexCount)
+        Status = _DLL.FT_ListDevices(DeviceIndex, ctypes.byref(Buffer), Flags)
+        if(Status == FT_OK):
+            ReturnValue = Buffer.value.decode("ascii")
+        else:
+            ReturnValue = FT_STATUS_STR[Status]
+            _Print(FT_STATUS_STR[Status] + " | FT_ListDevices(), ERROR: FAILED TO GET DEVICE INFO.", PRINT_ERROR_MAJOR, False)
+    elif(Flags & FT_LIST_ALL):
+        ReturnValue = []
+        PointerArray = (ctypes.c_void_p * (IndexCount + 1))()
+        PointerArray[IndexCount] = NULL
+        for i in range(IndexCount):
+            PointerArray[i] = ctypes.cast(ctypes.c_buffer(SIZE_CHAR*64), ctypes.c_void_p)
+        DeviceCount = ctypes.wintypes.DWORD(IndexCount)
+        Status = _DLL.FT_ListDevices(PointerArray, ctypes.byref(DeviceCount), Flags)
+        if(Status == FT_OK):
+            for i in range(IndexCount):
+                ReturnValue.append(ctypes.cast(PointerArray[i], ctypes.c_char_p).value.decode("ascii"))
+        else:
+            for i in range(IndexCount):
+                ReturnValue.append(FT_STATUS_STR[Status])
+            _Print(FT_STATUS_STR[Status] + " | FT_ListDevices(), ERROR: FAILED TO GET INFO FOR DEVICES.", PRINT_ERROR_MAJOR, False)
+    else:
+        _Print(FT_STATUS_STR[Status] + " | FT_ListDevices(), WARNING: NOT GIVEN VALID FLAGS.", PRINT_ERROR_MAJOR, False)
+    return Status, ReturnValue
 
 def FT_Open(Index: int, Device: FT_Device) -> int:
     Status = FT_OTHER_ERROR
@@ -391,6 +436,24 @@ def FT_Open(Index: int, Device: FT_Device) -> int:
     else:
         Status = _DLL.FT_Open(ctypes.c_int(Index), ctypes.byref(Device._Handle))
         Device.Handle = Device._Handle.value
+    return Status
+
+def FT_OpenEx(Arg1: int | str, Flags: int, Device: FT_Device) -> int:
+    Status = FT_OTHER_ERROR
+    if(not(isinstance(Device, FT_Device))):
+        _Print("FT_OpenEx(), did not get an FT_Device!", PRINT_ERROR_MAJOR, False)
+        return Status
+    elif(not(isinstance(Device._Handle, ctypes.c_void_p))):
+        _Print("FT_OpenEx(), got an uninitialized or broken FT_Device object!", PRINT_ERROR_MAJOR, False)
+        return Status
+    if isinstance(Arg1, str):
+        Status = _DLL.FT_OpenEx(ctypes.create_string_buffer(Arg1.encode("utf-8")), ctypes.wintypes.DWORD(Flags), ctypes.byref(Device._Handle))
+    elif isinstance(Arg1, int):
+        Status = _DLL.FT_OpenEx(ctypes.wintypes.DWORD(Arg1), ctypes.wintypes.DWORD(Flags), ctypes.byref(Device._Handle))
+    else:
+        _Print("FT_OpenEx(), got an invalid Arg1 type!", PRINT_ERROR_MAJOR, False)
+        return Status
+    Device.Handle = Device._Handle.value
     return Status
 
 def FT_Close(Device: FT_Device) -> int:
@@ -409,6 +472,18 @@ def FT_SetBitMode(Device: FT_Device, Mask: int, Mode: int) -> int:
     Status = _DLL.FT_SetBitMode(Device._Handle, ctypes.c_char(Mask), ctypes.c_char(Mode))
     return Status
 
+def FT_Read(Device: FT_Device, BufferLength: int) -> tuple[int, FT_Buffer, int]:
+    Status = FT_OTHER_ERROR
+    Buffer = FT_Buffer()
+    Buffer._RawAddress = ctypes.c_buffer(BufferLength)
+    Buffer._Length = BufferLength
+    BytesTransferred = ctypes.c_ulong(0)
+    Status = _DLL.FT_Read(Device._Handle,
+                            ctypes.byref(Buffer._RawAddress),
+                            BufferLength,
+                            ctypes.byref(BytesTransferred))
+    return Status, Buffer, BytesTransferred.value
+
 def FT_Write(Device: FT_Device, Buffer: FT_Buffer, BufferLength: int) -> tuple[int, int]:
     Status = FT_OTHER_ERROR
     if(isinstance(Buffer._RawAddress, FT_Buffer)):
@@ -421,17 +496,10 @@ def FT_Write(Device: FT_Device, Buffer: FT_Buffer, BufferLength: int) -> tuple[i
                             ctypes.byref(BytesTransferred))
     return Status, BytesTransferred.value
 
-def FT_Read(Device: FT_Device, BufferLength: int) -> tuple[int, FT_Buffer, int]:
+def FT_SetBaudRate(Device: FT_Device, Baudrate: int) -> int:
     Status = FT_OTHER_ERROR
-    Buffer = FT_Buffer()
-    Buffer._RawAddress = ctypes.c_buffer(BufferLength)
-    Buffer._Length = BufferLength
-    BytesTransferred = ctypes.c_ulong(0)
-    Status = _DLL.FT_Read(Device._Handle,
-                            ctypes.byref(Buffer._RawAddress),
-                            BufferLength,
-                            ctypes.byref(BytesTransferred))
-    return Status, Buffer, BytesTransferred.value
+    Status = _DLL.FT_SetBaudRate(Device._Handle, ctypes.wintypes.DWORD(Baudrate))
+    return Status
 
 def FT_Purge(Device: FT_Device, Mask: int) -> int:
     Status = FT_OTHER_ERROR
