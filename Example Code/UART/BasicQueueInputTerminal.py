@@ -1,7 +1,9 @@
 import PyD2XX
+import time
 
 PyD2XX.SetPrintLevel(PyD2XX.PRINT_NONE)
 
+CHECK_RX = 100 # Every ms, check RX queue.
 BAUD_RATE = 9600
 
 # ---| Main Code Starts Here |---
@@ -26,7 +28,7 @@ if(Status != PyD2XX.FT_OK):
     print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO GET DEVICE INFO LIST: ABORTING")
     exit()
 
-for i in range(DeviceCount): # Open only the first device not in use by a process.
+for i in range(DeviceCount):
     Device = DeviceList[i]
     print("---| Device " + str(i) + " (\"" +  Device.Description  + "\", \"" \
             + Device.SerialNumber + "\", " \
@@ -40,18 +42,14 @@ for i in range(DeviceCount): # Open only the first device not in use by a proces
         if(Status != PyD2XX.FT_OK):
             print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO OPEN DEVICE: ABORTING")
             exit()
-        print("Device selected for writing!")
+        print("  Device selected for reading!")
         break
+    Device = False
 
-if isinstance(Device, int):
-    print(PyD2XX.FT_STATUS_STR[Device] + " | FAILED TO OPEN ANY DEVICE: ABORTING")
+if isinstance(Device, bool):
+    print("Failed to open any device: ABORTING")
     exit()
 
-CommandString = ""
-
-# Below loop writes 1 byte at a time forever until we send "exit()".
-print("---| Basic Output Terminal (Baud Rate = " + str(BAUD_RATE) + ") |---")
-print("Type in \"exit()\" to end the program.")
 Status = PyD2XX.FT_SetBaudRate(Device, BAUD_RATE)
 if(Status != PyD2XX.FT_OK):
     print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO SET BAUD RATE: ABORTING")
@@ -60,23 +58,42 @@ Status = PyD2XX.FT_Purge(Device, PyD2XX.FT_PURGE_RX | PyD2XX.FT_PURGE_TX)
 if(Status != PyD2XX.FT_OK):
     print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO PURGE RX & TX BUFFERS: ABORTING")
     exit()
-while(True):
-    CommandString = input("Output: ") + '\r' + '\n' # Add carriage return and new line for terminals.
-    OutputBuffer = PyD2XX.FT_Buffer.from_str(CommandString)
-    Status, BytesWritten = PyD2XX.FT_Write(Device, OutputBuffer, len(CommandString))
+Stop = ord('A')
+print("---| Queue Input Terminal (Baud Rate = " + str(BAUD_RATE) + ") |---")
+#Stop receiving bytes if we obtain a newline or carriage return.
+while((Stop != ord('\n')) and (Stop != ord('\r'))):
+    time.sleep(CHECK_RX / 1000)
+    Status, QueueStatus = PyD2XX.FT_GetQueueStatus(Device)
     if(Status != PyD2XX.FT_OK):
-        print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO WRITE: ABORTING")
+        print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO GET QUEUE STATUS: ABORTING")
         exit()
-    if(BytesWritten != len(CommandString)):
-        print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO WRITE OUTPUT: ABORTING")
-        exit()
-    if(CommandString.strip() == "exit()"):
-        break
+    if(QueueStatus > 0):
+        Status, Buffer, BytesTransferred = PyD2XX.FT_Read(Device, QueueStatus)
+        if(Status != PyD2XX.FT_OK):
+            print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO READ: ABORTING")
+            exit()
+        Data = Buffer.Value()
+        for i in range(BytesTransferred):
+            Character = chr(Data[i])
+            match Character:
+                case '\r':
+                    Character = "\\r"
+                case '\n':
+                    Character = "\\n"
+                case '\t':
+                    Character = "\\t"
+                case '\0':
+                    Character = "\\0"
+                case _: # Default case
+                    pass
+            print("Receiver Processed: '" + Character + "' / 0x" + "{:02X}".format(Data[i]))
+            Stop = Data[i]
+
 Status = PyD2XX.FT_Close(Device)
 if(Status != PyD2XX.FT_OK):
     print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO CLOSE DEVICE: ABORTING")
     exit()
-print("Successfully closed the device!")
+print("Successfully closed!")
 
 if(PyD2XX.Platform == "linux"):
     Status = PyD2XX.bind_ftdi_sio(VID = int("0403", 16))

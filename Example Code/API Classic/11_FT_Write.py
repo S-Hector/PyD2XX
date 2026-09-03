@@ -49,7 +49,7 @@ if isinstance(Device, int):
 
 CommandString = ""
 
-# Below loop writes 1 byte at a time forever until we send "exit()".
+# Below loop writes 1 entry at a time forever until we send "exit()".
 print("---| Basic Output Terminal (Baud Rate = " + str(BAUD_RATE) + ") |---")
 print("Type in \"exit()\" to end the program.")
 Status = PyD2XX.FT_SetBaudRate(Device, 9600)

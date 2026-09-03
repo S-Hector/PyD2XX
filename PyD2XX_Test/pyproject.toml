@@ -7,7 +7,7 @@ includes = ["src/PyD2XX/"]
 
 [project]
 name = "PyD2XX"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
   { name="Hector Soto", email="hector.soto@ftdichip.com" },
 ]

@@ -52,7 +52,7 @@ CommandString = ""
 # Below loop reads 1 byte at a time forever until we receive "exit()".
 print("---| Basic Input Terminal (Baud Rate = " + str(BAUD_RATE) + ") |---")
 print("Send \"exit()\" from your external device to end the program.")
-Status = PyD2XX.FT_SetBaudRate(Device, 9600)
+Status = PyD2XX.FT_SetBaudRate(Device, BAUD_RATE)
 if(Status != PyD2XX.FT_OK):
     print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO SET BAUD RATE: ABORTING")
     exit()

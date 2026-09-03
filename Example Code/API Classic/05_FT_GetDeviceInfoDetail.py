@@ -23,7 +23,7 @@ DeviceList = {}
 for i in range(DeviceCount):
     Status, DeviceList[i] = PyD2XX.FT_GetDeviceInfoDetail(i)
     if(Status != PyD2XX.FT_OK):
-        print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO GET DEVICE INFO LIST: ABORTING")
+        print(PyD2XX.FT_STATUS_STR[Status] + " | FAILED TO GET DEVICE INFO DETAIL: ABORTING")
         exit()
 
 for i in range(DeviceCount):

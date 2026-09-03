@@ -20,8 +20,8 @@ from sys import platform as Platform
 
 # ---| Python Library Specific Definitions |---
 
-VERSION = "0.0.4"
-VERSION_TEST = "0.0.7_adresă_nouă"
+VERSION = "0.0.5"
+VERSION_TEST = "0.0.8_cealaltă_jumătate"
 
 PRINT_NONE =            int("00000", 2) # Print no messages.
 PRINT_ERROR_CRITICAL =  int("00001", 2) # Print critical error messages.
@@ -233,6 +233,25 @@ FT_LIST_ALL = int("0x20000000", 16)
 FT_OPEN_BY_SERIAL_NUMBER = int("0x00000001", 16)
 FT_OPEN_BY_DESCRIPTION = int("0x00000002", 16)
 FT_OPEN_BY_LOCATION = int("0x00000004", 16)
+
+FT_BITS_8 = 8
+FT_BITS_7 = 7
+FT_STOP_BITS_1 = 0
+FT_STOP_BITS_2 = 2
+FT_PARITY_NONE = 0
+FT_PARITY_ODD = 1
+FT_PARITY_EVEN = 2
+FT_PARITY_MARK = 3
+FT_PARITY_SPACE = 4
+
+FT_FLOW_NONE = int("0x0000", 16)
+FT_FLOW_RTS_CTS	= int("0x0100", 16)
+FT_FLOW_DTR_DSR	= int("0x0200", 16)
+FT_FLOW_XON_XOFF = int("0x0400", 16)
+
+FT_EVENT_RXCHAR = 1
+FT_EVENT_MODEM_STATUS = 2
+FT_EVENT_LINE_STATUS = 4
 
 class FT_Buffer:
     def __init__(self, Size: int = None):
@@ -500,6 +519,114 @@ def FT_SetBaudRate(Device: FT_Device, Baudrate: int) -> int:
     Status = FT_OTHER_ERROR
     Status = _DLL.FT_SetBaudRate(Device._Handle, ctypes.wintypes.DWORD(Baudrate))
     return Status
+
+def FT_SetDivisor(Device: FT_Device, Divisor: int) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_SetDivisor(Device._Handle, ctypes.c_ushort(Divisor))
+    return Status
+
+def FT_SetDataCharacteristics(Device: FT_Device, WordLength: int, StopBits: int, Parity: int) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_SetDataCharacteristics(Device._Handle, ctypes.c_ubyte(WordLength), ctypes.c_ubyte(StopBits), ctypes.c_ubyte(Parity))
+    return Status
+
+def FT_SetTimeouts(Device: FT_Device, ReadTimeout: int, WriteTimeout: int) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_SetTimeouts(Device._Handle, ctypes.wintypes.DWORD(ReadTimeout), ctypes.wintypes.DWORD(WriteTimeout))
+    return Status
+
+def FT_SetFlowControl(Device: FT_Device, FlowControl: int, Xon: int, Xoff: int) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_SetFlowControl(Device._Handle, ctypes.c_ushort(FlowControl), ctypes.c_ubyte(Xon), ctypes.c_ubyte(Xoff))
+    return Status
+
+def FT_SetDtr(Device: FT_Device) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_SetDtr(Device._Handle)
+    return Status
+
+def FT_ClrDtr(Device: FT_Device) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_ClrDtr(Device._Handle)
+    return Status
+
+def FT_SetRts(Device: FT_Device) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_SetRts(Device._Handle)
+    return Status
+
+def FT_ClrRts(Device: FT_Device) -> int:
+    Status = FT_OTHER_ERROR
+    Status = _DLL.FT_ClrRts(Device._Handle)
+    return Status
+
+def FT_GetModemStatus(Device: FT_Device) -> tuple[int, int]:
+    Status = FT_OTHER_ERROR
+    ModemStatus = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetModemStatus(Device._Handle, ctypes.byref(ModemStatus))
+    return Status, ModemStatus.value
+
+# This function is deprecated/no longer exists in the C library.
+# I just make it call FT_GetModemStatus and set the line status bytes to zero.
+def FT_ModemStatus(Device: FT_Device) -> tuple[int, int]:
+    Status = FT_OTHER_ERROR
+    ModemStatus = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetModemStatus(Device._Handle, ctypes.byref(ModemStatus))
+    return Status, (ModemStatus.value & int("0x00FF", 16))
+
+# This function is deprecated/no longer exists in the C library.
+# I just make it call FT_GetModemStatus and return the line status.
+def FT_LineStatus(Device: FT_Device) -> tuple[int, int]:
+    Status = FT_OTHER_ERROR
+    ModemStatus = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetModemStatus(Device._Handle, ctypes.byref(ModemStatus))
+    return Status, ((ModemStatus.value >> 8) & int("0x00FF", 16))
+
+def FT_GetQueueStatus(Device: FT_Device) -> tuple[int, int]:
+    Status = FT_OTHER_ERROR
+    QueueStatus = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetQueueStatus(Device._Handle, ctypes.byref(QueueStatus))
+    return Status, QueueStatus.value
+
+def FT_GetDeviceInfo(Device: FT_Device) -> tuple[int, int, str, str]:
+    Status = FT_OTHER_ERROR
+    Type = ctypes.c_ulong(0)
+    ID = ctypes.wintypes.DWORD(0)
+    SerialNumber = ctypes.c_buffer(SIZE_CHAR * 16)
+    Description = ctypes.c_buffer(SIZE_CHAR * 64)
+    Status = _DLL.FT_GetDeviceInfo(Device._Handle, \
+                                    ctypes.byref(Type), \
+                                    ctypes.byref(ID), \
+                                    ctypes.byref(SerialNumber), \
+                                    ctypes.byref(Description), \
+                                    ctypes.c_void_p(0))
+    return Status, Type.value, ID.value, SerialNumber.value.decode("utf-8"), Description.value.decode("utf-8")
+
+def FT_GetDriverVersion(Device: FT_Device) -> tuple[int, int]:
+    Status = FT_OTHER_ERROR
+    DriverVersion = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetDriverVersion(Device._Handle, ctypes.byref(DriverVersion))
+    return Status, DriverVersion.value
+
+def FT_GetLibraryVersion() -> tuple[int, int]:
+    Status = FT_OTHER_ERROR
+    LibraryVersion = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetLibraryVersion(ctypes.byref(LibraryVersion))
+    return Status, LibraryVersion.value
+
+def FT_GetComPortNumber(Device: FT_Device) -> tuple[int, int]:
+    Status = FT_OTHER_ERROR
+    COM = ctypes.c_ulong(0)
+    Status = _DLL.FT_GetComPortNumber(Device._Handle, ctypes.byref(COM))
+    return Status, COM.value
+
+def FT_GetStatus(Device: FT_Device) -> tuple[int, int, int, int]:
+    Status = FT_OTHER_ERROR
+    QueueRX = ctypes.wintypes.DWORD(0)
+    QueueTX = ctypes.wintypes.DWORD(0)
+    EventStatus = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetStatus(Device._Handle, ctypes.byref(QueueRX), ctypes.byref(QueueTX), ctypes.byref(EventStatus))
+    return Status, QueueRX.value, QueueTX.value, EventStatus.value
 
 def FT_Purge(Device: FT_Device, Mask: int) -> int:
     Status = FT_OTHER_ERROR
