@@ -4,8 +4,9 @@
 # and not a full translation of the D2XX library to Python.
 # The API and behavior can change at any time until the MAJOR version is 1.
 
-print("PyD2XX: PyD2XX is still in EXTREMELY early development!")
-print("PyD2XX: You should use PyFTDI instead: https://github.com/eblot/pyftdi")
+# Some may find the below warning not being removable annoying, so it has been moved to the print queue as startup info.
+# print("PyD2XX: PyD2XX is still in EXTREMELY early development!")
+# print("PyD2XX: You should use PyFTDI instead: https://github.com/eblot/pyftdi")
 
 import ctypes
 import ctypes.wintypes
@@ -20,8 +21,8 @@ from sys import platform as Platform
 
 # ---| Python Library Specific Definitions |---
 
-VERSION = "0.0.5"
-VERSION_TEST = "0.0.8_cealaltă_jumătate"
+VERSION = "0.0.6"
+VERSION_TEST = "0.0.9_acces_nou"
 
 PRINT_NONE =            int("00000", 2) # Print no messages.
 PRINT_ERROR_CRITICAL =  int("00001", 2) # Print critical error messages.
@@ -331,6 +332,9 @@ def _CreateDevice():
 
 # ---| END OF EQUIVALENT HEADER PORTION |---
 
+_Print("PyD2XX: PyD2XX is still in EXTREMELY early development!", PRINT_INFO_START, True)
+_Print("PyD2XX: You should use PyFTDI instead: https://github.com/eblot/pyftdi", PRINT_INFO_START, True)
+
 # ---| LIBRARY INCLUSION PART |---
 _Python64 = (ctypes.sizeof(ctypes.c_void_p) == 8) # True if 64-bit version of Python is running.
 
@@ -352,6 +356,21 @@ except:
 _Print("Successfully loaded D2XX: '" + _LibraryFile + "'", PRINT_INFO_START, True)
 
 # ---| FTD2XX Python Function Implementations |---
+
+def FT_SetVIDPID(VID: int, PID: int) -> int:
+    Status = FT_OTHER_ERROR
+    if(Platform == "windows"):
+        _Print("FT_SetVIDPID(), this function does not exist on Windows!.", PRINT_ERROR_MAJOR, False)
+        return FT_NOT_SUPPORTED
+    Status = _DLL.FT_SetVIDPID(ctypes.wintypes.DWORD(VID), ctypes.wintypes.DWORD(PID))
+    return Status
+
+def FT_GetVIDPID() -> tuple[int, int, int]:
+    Status = FT_OTHER_ERROR
+    VID = ctypes.wintypes.DWORD(0)
+    PID = ctypes.wintypes.DWORD(0)
+    Status = _DLL.FT_GetVIDPID(ctypes.byref(VID), ctypes.byref(PID))
+    return Status, VID.value, PID.value
 
 def FT_CreateDeviceInfoList() -> tuple[int, int]:
     DeviceCount = ctypes.c_ulong(0)
@@ -681,16 +700,13 @@ def unbind_ftdi_sio(VID: int | None=None, PID: int | None=None, Manufacturer: st
     Matches = _linux_find_usb_matches(ftdi_sio_dir, VID, PID, Manufacturer, Description, SerialNumber, UnbindAll)
     if(len(Matches) == 0):
         return FT_DEVICE_NOT_FOUND
-    if (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")) and RequestGUI:
+    if(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")) and RequestGUI:
         if shutil.which("pkexec") is not None: # Launch GUI prompt for admin access to unbind device from driver.
             UnbindProcess = subprocess.Popen(["pkexec", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
-            pass # Unbind graphically
         else:
             UnbindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
-            pass #Unbind terminally
     else:
         UnbindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
-        pass #Unbind terminally
     for Device in Matches:
         #print("Unbinded: " + Device)
         UnbindProcess.stdin.write("echo -n " + Device + " > " + ftdi_sio_dir + "unbind\n")
@@ -709,20 +725,96 @@ def bind_ftdi_sio(VID: int | None=None, PID: int | None=None, Manufacturer: str 
     Matches = _linux_find_usb_matches("/sys/bus/usb/devices/", VID, PID, Manufacturer, Description, SerialNumber, BindAll)
     if(len(Matches) == 0):
         return FT_DEVICE_NOT_FOUND
-    if (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")) and RequestGUI:
+    if(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")) and RequestGUI:
         if shutil.which("pkexec") is not None: # Launch GUI prompt for admin access to bind device to driver.
             BindProcess = subprocess.Popen(["pkexec", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
-            pass # Unbind graphically
         else:
             BindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
-            pass #Unbind terminally
     else:
         BindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
-        pass #Unbind terminally
     for Device in Matches:
         #print("Binded: " + Device)
         BindProcess.stdin.write("echo -n " + Device + " > " + ftdi_sio_dir + "bind\n")
         BindProcess.stdin.flush()
     BindProcess.stdin.close()
     BindProcess.wait()
+    return Status
+
+def register_ftdi_sio(VID: int, PID: int, RequestGUI: bool=True) -> int:
+    if(Platform != "linux"):
+        return FT_NOT_SUPPORTED
+    ftdi_sio_dir = "/sys/bus/usb-serial/drivers/ftdi_sio/" #
+    if not(os.path.isdir(ftdi_sio_dir)): # Kernel module is not installed or not active... so automatic failure!
+        return FT_NOT_SUPPORTED
+    Status = FT_OK
+    if(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")) and RequestGUI:
+        if shutil.which("pkexec") is not None: # Launch GUI prompt for admin access to bind device to driver.
+            BindProcess = subprocess.Popen(["pkexec", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+        else:
+            BindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+    else:
+        BindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+    BindProcess.stdin.write("echo \"" + format(VID, '04X') + ' ' + format(PID, '04X') + "\" | tee " + ftdi_sio_dir + "new_id\n")
+    BindProcess.stdin.flush()
+    BindProcess.stdin.close()
+    BindProcess.wait()
+    return Status
+
+def reset_ftdi_sio(RequestGUI: bool=True) -> int:
+    if(Platform != "linux"):
+        return FT_NOT_SUPPORTED
+    ftdi_sio_dir = "/sys/bus/usb-serial/drivers/ftdi_sio/" #
+    if not(os.path.isdir(ftdi_sio_dir)): # Kernel module is not installed or not active... so automatic failure!
+        return FT_NOT_SUPPORTED
+    Status = FT_OK
+    if(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")) and RequestGUI:
+        if shutil.which("pkexec") is not None: # Launch GUI prompt for admin access to bind device to driver.
+            BindProcess = subprocess.Popen(["pkexec", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+        else:
+            BindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+    else:
+        BindProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+    BindProcess.stdin.write("rmmod ftdi_sio\n")
+    BindProcess.stdin.write("modprobe ftdi_sio\n")
+    BindProcess.stdin.flush()
+    BindProcess.stdin.close()
+    BindProcess.wait()
+    return Status
+
+def linux_grant_user_access(VID: int | None=None, PID: int | None=None, Manufacturer: str | None=None, Description: str | None=None, SerialNumber: str | None=None, BindAll: bool=True, RequestGUI: bool=True) -> int:
+    if(Platform != "linux"):
+        return FT_NOT_SUPPORTED
+    ftdi_sio_dir = "/sys/bus/usb/drivers/ftdi_sio/"
+    if not(os.path.isdir(ftdi_sio_dir)): # Kernel module is not installed or not active... so automatic failure!
+        return FT_NOT_SUPPORTED
+    Status = FT_OK
+    Matches = _linux_find_usb_matches("/sys/bus/usb/devices/", VID, PID, Manufacturer, Description, SerialNumber, BindAll)
+    if(len(Matches) == 0):
+        return FT_DEVICE_NOT_FOUND
+    DeviceNodeList = []
+    for Device in Matches: # Get list of device nodes.
+        Device = Device.split(':')[0] # Remove extra tag at end we don't need.
+        DeviceNode = subprocess.Popen(["udevadm", "info", "--query=property", "--path=/sys/bus/usb/devices/" + Device], shell=False, stdout=subprocess.PIPE).stdout.read().decode("ascii")
+        DeviceNode = DeviceNode[(DeviceNode.index("DEVNAME=") + len("DEVNAME=")):] # Get to DEVNAME field for device node.
+        DeviceNode = DeviceNode[:DeviceNode.index('\n')] # Strip everything after field.
+        if(len(DeviceNode)): # Only add device node to list if it has some length.
+            DeviceNodeList.append(DeviceNode)
+    if(len(DeviceNodeList) == 0):
+        return FT_DEVICE_NOT_FOUND
+    if(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")) and RequestGUI:
+        if shutil.which("pkexec") is not None: # Launch GUI prompt for admin access to bind device to driver.
+            GrantProcess = subprocess.Popen(["pkexec", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+            pass # Unbind graphically
+        else:
+            GrantProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+            pass #Unbind terminally
+    else:
+        GrantProcess = subprocess.Popen(["sudo", "sh"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=None, text=True)
+        pass #Unbind terminally
+    for Node in DeviceNodeList:
+        #print("Granted: " + Node)
+        GrantProcess.stdin.write("chmod 666 " + Node)
+        GrantProcess.stdin.flush()
+    GrantProcess.stdin.close()
+    GrantProcess.wait()
     return Status
