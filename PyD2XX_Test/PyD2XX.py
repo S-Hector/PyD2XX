@@ -21,8 +21,8 @@ from sys import platform as Platform
 
 # ---| Python Library Specific Definitions |---
 
-VERSION = "0.0.6"
-VERSION_TEST = "0.0.9_acces_nou"
+VERSION = "0.0.7"
+VERSION_TEST = "0.0.10_remediază_accesul"
 
 PRINT_NONE =            int("00000", 2) # Print no messages.
 PRINT_ERROR_CRITICAL =  int("00001", 2) # Print critical error messages.
@@ -783,9 +783,6 @@ def reset_ftdi_sio(RequestGUI: bool=True) -> int:
 
 def linux_grant_user_access(VID: int | None=None, PID: int | None=None, Manufacturer: str | None=None, Description: str | None=None, SerialNumber: str | None=None, BindAll: bool=True, RequestGUI: bool=True) -> int:
     if(Platform != "linux"):
-        return FT_NOT_SUPPORTED
-    ftdi_sio_dir = "/sys/bus/usb/drivers/ftdi_sio/"
-    if not(os.path.isdir(ftdi_sio_dir)): # Kernel module is not installed or not active... so automatic failure!
         return FT_NOT_SUPPORTED
     Status = FT_OK
     Matches = _linux_find_usb_matches("/sys/bus/usb/devices/", VID, PID, Manufacturer, Description, SerialNumber, BindAll)
